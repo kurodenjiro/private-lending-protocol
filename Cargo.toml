@@ -1,0 +1,42 @@
+[package]
+name = "lending"
+description = "cargo-near-new-project-description"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/<xxx>/<xxx>"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.near.reproducible_build]
+image = "sourcescan/cargo-near:0.13.4-rust-1.85.1"
+image_digest = "sha256:1f8b71742802f38990d442e8678aa4c0cd1c8317dd3ff493f41c079675d4f35b"
+passed_env = []
+container_build_command = [
+    "cargo",
+    "near",
+    "build",
+    "non-reproducible-wasm",
+    "--locked",
+]
+
+[dependencies]
+near-sdk = { version = "5.11.0", default-features = false, features = ["legacy"] }
+schemars = { version = "0.8.12", features = ["derive"] }
+sha2 = "0.10.8"
+
+
+[dev-dependencies]
+near-sdk = { version = "5.11.0", features = ["unit-testing"] }
+near-workspaces = { version = "0.18", features = ["unstable"] }
+tokio = { version = "1.12.0", features = ["full"] }
+serde_json = "1"
+near-abi = "0.4.0"
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
