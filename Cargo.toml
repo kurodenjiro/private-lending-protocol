@@ -1,9 +1,9 @@
 [package]
 name = "lending"
-description = "cargo-near-new-project-description"
+description = ""
 version = "0.1.0"
 edition = "2021"
-repository = "https://github.com/<xxx>/<xxx>"
+repository = "https://github.com/kurodenjiro/private-lending-protocol"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
