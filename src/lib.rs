@@ -212,13 +212,10 @@ impl CreditScoreProofs {
             account_id, amount.as_yoctonear(), loan.amount.as_yoctonear(), self.fund_pool.as_yoctonear()));
     }
 
-    pub fn verify_user(&mut self, account_id: AccountId, verified: bool) {
-        assert_eq!(
-            env::predecessor_account_id(),
-            self.owner,
-            "Only the owner can verify users"
-        );
-        self.is_verified_user.insert(&account_id, &verified);
-        env::log_str(&format!("User {} verification status set to {}", account_id, verified));
+    pub fn set_credit_score(&mut self, account_id: AccountId, score: u64) {
+        assert_eq!(env::predecessor_account_id(), self.owner, "Only owner can set credit scores");
+        self.is_verified_user.insert(&account_id, &true);
+        self.score_threshold.insert(&account_id, &score);
+        env::log_str(&format!("Credit score for {} set to {}", account_id, score));
     }
 }
