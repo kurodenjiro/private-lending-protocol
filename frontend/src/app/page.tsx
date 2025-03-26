@@ -34,7 +34,17 @@ export default function BorrowPage() {
     })
 
     const data = await res.json();
-    setLoanInfo(data.loan[0]);
+    if (data.status === 'success') {
+      setLoanInfo(data.loan[0]);
+    }else{
+      setLoanInfo({
+        due_timestamp: 0,
+        amount: '0',
+        interest_rate: 0,
+        start_timestamp: 0,
+        loan_status: 'No loan found'
+      });
+    }
   }
 
   useEffect(() => {
@@ -165,12 +175,16 @@ export default function BorrowPage() {
 
         <div className="mt-6 p-4 bg-gray-100 rounded-lg">
           <h3 className="text-lg font-semibold mb-2">Borrowing Stats</h3>
-          <div className="space-y-2">
-            <p className="text-sm">Start Date: {loanInfo?.start_timestamp ? new Date(loanInfo.start_timestamp).toLocaleDateString() : 'N/A'}</p>
-            <p className="text-sm">Due Date: {loanInfo?.due_timestamp ? new Date(loanInfo.due_timestamp).toLocaleDateString() : 'N/A'}</p>
-            <p className="text-sm">Loan Status: {loanInfo?.loan_status}</p>
-            <p className="text-sm">Your Borrowed: ≈ {((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE).toFixed(8)} ZCASH</p>
-          </div>
+          {loanInfo ? (
+            <div className="space-y-2">
+              <p className="text-sm">Start Date: {loanInfo?.start_timestamp ? new Date(loanInfo.start_timestamp).toLocaleDateString() : 'N/A'}</p>
+              <p className="text-sm">Due Date: {loanInfo?.due_timestamp ? new Date(loanInfo.due_timestamp).toLocaleDateString() : 'N/A'}</p>
+              <p className="text-sm">Loan Status: {loanInfo?.loan_status}</p>
+              <p className="text-sm">Your Borrowed: ≈ {((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE).toFixed(8)} ZCASH</p>
+            </div>
+          ):(
+            <p className="text-sm">No loan found</p>
+          )}
         </div>
       </div>
     </div>
