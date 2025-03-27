@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.3.3",
     "@near-wallet-selector/bitte-wallet": "^8.10.1",
     "@near-wallet-selector/core": "^8.10.1",
     "@near-wallet-selector/here-wallet": "^8.10.1",
@@ -16,6 +17,7 @@
     "@near-wallet-selector/my-near-wallet": "^8.10.1",
     "@near-wallet-selector/react-hook": "^8.10.1",
     "@types/bn.js": "^5.1.6",
+    "ai": "^4.2.6",
     "axios": "^1.8.4",
     "bn.js": "^5.2.1",
     "bs58": "^6.0.0",
@@ -28,11 +30,11 @@
     "react-hot-toast": "^2.5.2"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
