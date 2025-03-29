@@ -1,5 +1,5 @@
 import { getPoolBalance } from "@/lib/api";
-import { FinalExecutionOutcome } from "@near-js/types";
+import { FinalExecutionOutcome } from "near-api-js/lib/providers/provider";
 import { NextResponse } from "next/server";
 
 export async function GET() {
