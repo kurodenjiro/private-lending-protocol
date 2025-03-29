@@ -61,14 +61,10 @@ export async function GET(req: Request) {
 
         let credit = "0";
         const status = response.status;
-        if (typeof status === 'object' && 'SuccessValue' in status && status.SuccessValue) {
-            const base64Value = status.SuccessValue;
-            const decodedValue = Buffer.from(base64Value, 'base64').toString();
-            credit = JSON.parse(decodedValue);
-        }
+    
 
         return NextResponse.json({
-            status: 'success',
+            status: status,
             credit: credit,
         });
     } catch (error) {

@@ -66,17 +66,7 @@ export default function StakePage() {
       <h1 className="text-3xl font-bold mb-8">Staking</h1>
       
       <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-300">
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Select Token
-          </label>
-          <input
-            type="text"
-            value="NEAR"
-            disabled={true}
-            className="w-full p-2 border rounded-lg bg-white border-gray-300"
-          />
-        </div>
+  
         
         <div className="mb-6">
           <label className="block text-gray-700 text-sm font-bold mb-2">

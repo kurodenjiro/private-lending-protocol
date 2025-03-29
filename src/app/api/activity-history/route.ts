@@ -148,16 +148,16 @@ export async function GET(req: Request) {
         const parseDetails = contractResponse?.pageProps?.parseDetails?.contract?.[0];
         const isContract = parseDetails.contract !== null;
         let contractType: string = '{"contract_type":null}';
-        if (isContract) {
-            contractType = await contract_type(JSON.stringify(parseDetails.contract.methodNames));
-        }
+        // if (isContract) {
+        //     contractType = await contract_type(JSON.stringify(parseDetails.contract.methodNames));
+        // }
 
         // Process the activity if it's a contract
         allActivities.push({
             account: activity.account,
             totalIn: activity.totalIn,
             totalOut: activity.totalOut,
-            contractType: JSON.parse(contractType as any),
+         //   contractType: JSON.parse(contractType as any),
         });
     }
     return NextResponse.json({

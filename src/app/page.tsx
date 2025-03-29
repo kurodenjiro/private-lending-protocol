@@ -127,21 +127,10 @@ export default function BorrowPage() {
     <div className="container mx-auto px-4 pt-24">  
       <h1 className="text-3xl font-bold mb-8">Borrow</h1>    
       <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-300">
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Borrow Token
-          </label>
-          <input
-            type="text"
-            value="ZCASH"
-            disabled={true}
-            className="w-full p-2 border rounded-lg bg-white"
-          />
-        </div>
-        
+      
         <div className="mb-6">
           <label className="block text-gray-700 text-sm font-bold mb-2">
-            Borrow Amount
+            Amount Near Tokens
           </label>
           <input
             type="number"
@@ -154,7 +143,7 @@ export default function BorrowPage() {
 
         <div className="mb-6">
           <label className="block text-gray-700 text-sm font-bold mb-2">
-            Address to receive loan
+            Zcash Address
           </label>
           <input
             type="text"
