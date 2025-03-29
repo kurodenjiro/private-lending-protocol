@@ -62,7 +62,7 @@ export const WalletSelectorContextProvider: NextPage<{
         setupHereWallet(),
         setupMeteorWallet()
       ],
-    });
+    } as any);
     const _modal = setupModal(_selector, {
       contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || '',
       theme: "light",
@@ -93,8 +93,8 @@ export const WalletSelectorContextProvider: NextPage<{
 
     const subscription = selector.store.observable
       .pipe(
-        map((state:any) => state.accounts),
-        distinctUntilChanged()
+        map((state:any) => state.accounts) as any,
+        distinctUntilChanged() as any
       )
       .subscribe((nextAccounts:any) => {
         console.log("Accounts Update", nextAccounts);
