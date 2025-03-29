@@ -13,7 +13,7 @@ const ButtonLogin: React.FC = () => {
         setIsLoading(true);
         try {
             modal.show();
-            const subscription = modal.on("onHide", ({ hideReason }) => {
+            const subscription = modal.on("onHide", ({ hideReason }:any) => {
                 if (hideReason === "wallet-navigation") {
                     // User is being redirected to wallet
                     console.log("Redirecting to wallet...");
