@@ -8,6 +8,7 @@ const ButtonLogin: React.FC = () => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const hasFetchedSorce = useRef<boolean>(false);
 
     const handleSignIn = async () => {
         setIsLoading(true);
@@ -45,9 +46,15 @@ const ButtonLogin: React.FC = () => {
     };
 
     const setSorceForUser = async (accountId: string) => {
+        // If we've already fetched sorce or there's no accountId, don't proceed
+        if (hasFetchedSorce.current || !accountId) return;
+
         try {
             const hasSorce = localStorage.getItem('userSorce');
-            if (hasSorce) return; // Skip if sorce is already set
+            if (hasSorce) {
+                hasFetchedSorce.current = true;
+                return;
+            }
 
             const response = await fetch('/api/sorce', {
                 method: 'POST',
@@ -60,16 +67,16 @@ const ButtonLogin: React.FC = () => {
             const data = await response.json();
             if (data.status === 'success') {
                 localStorage.setItem('userSorce', data.score.toString());
+                hasFetchedSorce.current = true;
             }
         } catch (error) {
             console.error('Failed to set sorce:', error);
         }
     };
 
-    // Use useEffect to watch for signedAccountId changes
+    // Reset the fetch flag when accountId changes
     useEffect(() => {
         if (accountId) {
-            // console.log('signedAccountId', accountId);
             setSorceForUser(accountId);
         }
     }, [accountId]);

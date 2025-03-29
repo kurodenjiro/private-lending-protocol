@@ -5,6 +5,7 @@ import { useWalletSelector } from "@/components/Providers";
 import { CallMethod } from '@/lib/near-method';
 import toast from 'react-hot-toast';
 import { toDecimals } from '@/utils';
+import { useSearchParams } from 'next/navigation';
 
 // Conversion rate: 1 NEAR = 0.0776045 ZCASH
 const NEAR_TO_ZCASH_RATE = 0.0776045 / 1; // Rate per 1 NEAR
@@ -25,6 +26,7 @@ export default function BorrowPage() {
   const [loanInfo, setLoanInfo] = useState<LoanInfo | null>(null);
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [creditScore, setCreditScore] = useState<number | null>(null);
+  const searchParams = useSearchParams();
 
 
   const fetchCreditScore = async () => {
@@ -67,6 +69,22 @@ export default function BorrowPage() {
     checkWalletConnection();
   }, []);
 
+  useEffect(() => {
+    const transactionHashes = searchParams.get('transactionHashes');
+    if (transactionHashes) {
+      // Check if we've already shown toast for this transaction
+      const shownTransactions = localStorage.getItem('shown_loan_transactions');
+      const shownArray = shownTransactions ? JSON.parse(shownTransactions) : [];
+      
+      if (!shownArray.includes(transactionHashes)) {
+        toast.success('Repayment successfully!');
+        // Add this transaction to shown list
+        shownArray.push(transactionHashes);
+        localStorage.setItem('shown_loan_transactions', JSON.stringify(shownArray));
+      }
+    }
+  }, [searchParams]);
+
   const fetchLoanInfo = async () => {
     const res = await fetch('/api/view-loan', {
       method: 'POST',
@@ -76,6 +94,7 @@ export default function BorrowPage() {
     })
 
     const data = await res.json();
+    console.log(data);
     if (data.status === 'success') {
       if(data.loan === null) {
         return;
@@ -119,6 +138,7 @@ export default function BorrowPage() {
       setAmount('');
       setAddress('');
       setIsLoading(false);
+      fetchLoanInfo();
     } else {
       toast.error('Failed to create loan. Please try again.');
       toast.dismiss(loadingToast);
@@ -128,11 +148,31 @@ export default function BorrowPage() {
 
   const handleBorrow = async () => {
     try {
-      setIsLoading(true);
-      const loadingToast = toast.loading('Creating loan...');
-
+      // Validate amount
       if (!amount) {
         toast.error('Please enter an amount');
+        return;
+      }
+
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum)) {
+        toast.error('Please enter a valid number');
+        return;
+      }
+
+      if (amountNum <= 0) {
+        toast.error('Amount must be greater than 0');
+        return;
+      }
+
+      if (amountNum > 100) {
+        toast.error('Maximum amount allowed is 100 NEAR');
+        return;
+      }
+
+      // Validate address
+      if (!address) {
+        toast.error('Please enter a Zcash address');
         return;
       }
 
@@ -141,7 +181,9 @@ export default function BorrowPage() {
         return;
       }
 
-
+      setIsLoading(true);
+      const loadingToast = toast.loading('Creating loan...');
+      localStorage.setItem('loan_amount', amount);
       const result = await CallMethod({
         accountId,
         selector,
@@ -169,82 +211,165 @@ export default function BorrowPage() {
     }
   };
 
-  return (
-    <div className="container mx-auto px-4 pt-24">
-      <h1 className="text-3xl font-bold mb-8">Borrow</h1>
-
-      {isWalletConnected ? (
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-300">
-          {/* Display Credit Score */}
-          <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-            <h3 className="text-lg font-semibold mb-2">Credit Score</h3>
-            {creditScore !== null ? (
-              <p className="text-sm">Your Credit Score: <span className="font-bold">{creditScore}</span></p>
-            ) : (
-              <p className="text-sm">Fetching your credit score...</p>
-            )}
-          </div>
-          <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Amount Near to Lend
-            </label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.0"
-              className="w-full p-2 border rounded-lg bg-white"
-            />
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Zcash Address
-            </label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Enter address to receive loan"
-              className="w-full p-2 border rounded-lg bg-white"
-            />
-          </div>
-
-          <button
-            onClick={handleBorrow}
-            disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
-          >
-            {isLoading ? 'Borrowing...' : 'Borrow'}
-          </button>
-
-          <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-            <h3 className="text-lg font-semibold mb-2">Borrowing Stats</h3>
-            {loanInfo ? (
-              <div className="space-y-2">
-                <p className="text-sm">Start Date: {loanInfo?.start_timestamp ? new Date(loanInfo.start_timestamp).toLocaleDateString() : 'N/A'}</p>
-                <p className="text-sm">Due Date: {loanInfo?.due_timestamp ? new Date(loanInfo.due_timestamp).toLocaleDateString() : 'N/A'}</p>
-                <p className="text-sm">Loan Status: {loanInfo?.loan_status}</p>
-                <p className="text-sm">Your Borrowed: ≈ {((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE).toFixed(8)} ZCASH</p>
-              </div>
-            ) : (
-              <p className="text-sm">No loan found</p>
-            )}
-          </div>
-        </div>
-      ) :
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-300">
-
-          <div className="mb-6 text-center">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Please connect your wallet
-            </label>
-
-          </div>
-        </div>
-
+  const handleRepay = async () => {
+    try {
+      if (!accountId) {
+        toast.error('Please connect your wallet first');
+        return;
       }
 
+      setIsLoading(true);
+      const loadingToast = toast.loading('Processing repayment...');
+
+      // Get loan info first
+      if (!loanInfo) {
+        toast.error('No active loan found');
+        toast.dismiss(loadingToast);
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await CallMethod({
+        accountId,
+        selector,
+        contractId: 'citadelonchain.near',
+        method: 'repay',
+        args: {
+          account_id: accountId,
+        },
+        options: {
+          gas: '100000000000000',  // 100 TGas
+          attached_deposit: loanInfo?.amount
+        }
+      });
+
+      if (result) {
+        toast.success('Loan repaid successfully!');
+        localStorage.removeItem('loan_amount');
+        toast.dismiss(loadingToast);
+        fetchLoanInfo(); // Refresh loan info
+      }
+
+      toast.dismiss(loadingToast);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error repaying loan:', error);
+      toast.error('Failed to repay loan. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // console.log(toDecimals('0.1', 24));
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24">
+        <h1 className="text-3xl font-bold mb-8">Borrow</h1>
+
+        {isWalletConnected ? (
+          <div className="flex flex-col md:flex-row justify-center items-start">
+            {/* Borrow Form Card */}
+            <div className="w-full md:w-[450px] bg-white rounded-lg shadow-md p-6 border border-gray-300">
+              <h2 className="text-xl font-semibold mb-6">Create New Loan</h2>
+              
+              {/* Credit Score Section */}
+              <div className="mb-6 p-4 bg-gray-100 rounded-lg">
+                <h3 className="text-lg font-semibold mb-2">Credit Score</h3>
+                {creditScore !== null ? (
+                  <p className="text-sm">Your Credit Score: <span className="font-bold">{creditScore}</span></p>
+                ) : (
+                  <p className="text-sm">Fetching your credit score...</p>
+                )}
+              </div>
+
+              {/* Amount Input */}
+              <div className="mb-6">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Amount Near to Lend
+                </label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || (parseFloat(value) >= 0 && parseFloat(value) <= 100)) {
+                      setAmount(value);
+                    }
+                  }}
+                  min="0"
+                  max="100"
+                  step="0.000001"
+                  placeholder="0.0 (max 100 NEAR)"
+                  className="w-full p-2 border rounded-lg bg-white"
+                />
+              </div>
+
+              {/* Zcash Address Input */}
+              <div className="mb-6">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Zcash Address
+                </label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Enter Zcash address (t1... or t3...)"
+                  pattern="^[t][1|3][a-zA-Z0-9]{33}$"
+                  className="w-full p-2 border rounded-lg bg-white"
+                />
+              </div>
+
+              {/* Borrow Button */}
+              <button
+                onClick={handleBorrow}
+                disabled={isLoading}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
+              >
+                {isLoading ? 'Processing...' : 'Borrow'}
+              </button>
+            </div>
+
+            {/* Loan Information Card */}
+            <div className="w-full md:w-[450px] bg-white rounded-lg shadow-md p-6 border border-gray-300 mt-6 md:mt-0 md:ml-6">
+              <h2 className="text-xl font-semibold mb-6">Loan Information</h2>
+              
+              {loanInfo ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-gray-100 rounded-lg space-y-2">
+                    <p className="text-sm">Start Date: {loanInfo?.start_timestamp ? new Date(loanInfo.start_timestamp).toLocaleDateString() : 'N/A'}</p>
+                    <p className="text-sm">Due Date: {loanInfo?.due_timestamp ? new Date(loanInfo.due_timestamp).toLocaleDateString() : 'N/A'}</p>
+                    <p className="text-sm">Loan Status: <span className="font-medium">{loanInfo?.loan_status}</span></p>
+                    <p className="text-sm">Amount Borrowed: <span className="font-medium">≈ {((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE).toFixed(8)} ZCASH</span></p>
+                  </div>
+
+                  {/* Repay Button - Only show if there's an active loan */}
+                  {loanInfo?.loan_status === 'Borrowed' && (
+                    <button
+                      onClick={handleRepay}
+                      disabled={isLoading}
+                      className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
+                    >
+                      {isLoading ? 'Processing...' : 'Repay Loan'}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 bg-gray-100 rounded-lg">
+                  <p className="text-sm text-gray-600">No active loans found</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-300">
+            <div className="mb-6 text-center">
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Please connect your wallet
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 } 

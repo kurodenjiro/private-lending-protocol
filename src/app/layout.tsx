@@ -3,7 +3,6 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import Header from '@/components/Header';
 import Layout from '@/components/Layout';
-import "@near-wallet-selector/modal-ui/styles.css"
 import { Toaster } from 'react-hot-toast';
 const inter = Inter({ subsets: ['latin'] });
 import "@near-wallet-selector/modal-ui/styles.css"

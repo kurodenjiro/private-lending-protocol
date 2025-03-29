@@ -1,5 +1,3 @@
-
-
 interface CallMethodArgs {
   accountId: string;
   selector: any;
@@ -13,6 +11,7 @@ interface CallMethodOptions {
   gas?: string;
   deposit?: string;
   callbackUrl?: string;
+  attached_deposit?: string;
 }
 
 export const CallMethod = async ({accountId,selector,contractId,method,args,options}: CallMethodArgs) => {
@@ -26,8 +25,8 @@ export const CallMethod = async ({accountId,selector,contractId,method,args,opti
       const parseNearAmount = (amount: string | number): string => {
         const NEAR_NOMINATION = 24;
         const amountFloat = typeof amount === 'string' ? parseFloat(amount) : amount;
-        const nearAmount = BigInt(Math.round(amountFloat * Math.pow(10, NEAR_NOMINATION))).toString();
-        return nearAmount;
+        if (isNaN(amountFloat)) return '0';
+        return (BigInt(Math.round(amountFloat * Math.pow(10, NEAR_NOMINATION)))).toString();
       };
 
       const wallet = await selector.wallet();
@@ -40,7 +39,7 @@ export const CallMethod = async ({accountId,selector,contractId,method,args,opti
             methodName: method,
             args: args,
             gas: options?.gas || '30000000000000',
-            deposit: options?.deposit ? parseNearAmount(options.deposit) : '0'
+            deposit: options?.deposit ? parseNearAmount(options.deposit) : options?.attached_deposit ? options.attached_deposit : '0'
           }
         }]
       };

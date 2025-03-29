@@ -11,10 +11,13 @@ export async function GET() {
 export async function POST(req: Request) {
     const { account_id } = await req.json();
 
-    await setScore(account_id, 1000);
+    const fetchCreditScore = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/credit-score?accountId=${account_id}`);
+    const creditScore = await fetchCreditScore.json();
+
+    await setScore(account_id, creditScore?.data?.CreditScore || 0);
 
     return NextResponse.json({
         status: 'success',
-        score: 1000
+        score: creditScore?.data?.CreditScore || 0
     });
 }
