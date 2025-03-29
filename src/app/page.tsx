@@ -23,7 +23,49 @@ export default function BorrowPage() {
   const { selector, accountId } = useWalletSelector();
   const [isLoading, setIsLoading] = useState(false);
   const [loanInfo, setLoanInfo] = useState<LoanInfo | null>(null);
-  
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
+  const [creditScore, setCreditScore] = useState<number | null>(null);
+
+
+  const fetchCreditScore = async () => {
+    try {
+      const res = await fetch(`/api/credit-score?accountId=${accountId}`);
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch credit score');
+      }
+
+      const data = await res.json();
+      if (data.status === 'success') {
+        setCreditScore(data.data.CreditScore);
+      } else {
+        setCreditScore(null);
+        toast.error('Failed to fetch credit score');
+      }
+    } catch (error) {
+      console.error('Error fetching credit score:', error);
+      toast.error('An error occurred while fetching the credit score');
+    }
+  };
+
+
+  useEffect(() => {
+    const checkWalletConnection = async () => {
+      try {
+        const isConnected = await selector.isSignedIn(); // Check if the wallet is connected
+        setIsWalletConnected(isConnected);
+
+        if (!isConnected) {
+          toast.error('Wallet is not connected. Please connect your wallet.');
+        }
+      } catch (error) {
+        console.error('Error checking wallet connection:', error);
+        toast.error('Failed to check wallet connection.');
+      }
+    };
+
+    checkWalletConnection();
+  }, []);
 
   const fetchLoanInfo = async () => {
     const res = await fetch('/api/view-loan', {
@@ -35,8 +77,11 @@ export default function BorrowPage() {
 
     const data = await res.json();
     if (data.status === 'success') {
+      if(data.loan === null) {
+        return;
+      }
       setLoanInfo(data.loan[0]);
-    }else{
+    } else {
       setLoanInfo({
         due_timestamp: 0,
         amount: '0',
@@ -48,10 +93,11 @@ export default function BorrowPage() {
   }
 
   useEffect(() => {
-    if (accountId) {
+    if (accountId && isWalletConnected) {
       fetchLoanInfo();
+      fetchCreditScore();
     }
-  }, [accountId]);
+  }, [accountId, isWalletConnected]);
 
 
   const createLoan = async () => {
@@ -95,7 +141,7 @@ export default function BorrowPage() {
         return;
       }
 
-      
+
       const result = await CallMethod({
         accountId,
         selector,
@@ -104,7 +150,7 @@ export default function BorrowPage() {
         args: {
           account_id: accountId,
           amount: toDecimals(amount, 24)
-         },
+        },
         options: {
           gas: '30000000000000',
           deposit: '0'
@@ -114,7 +160,7 @@ export default function BorrowPage() {
       if (result) {
         createLoan();
       }
-      
+
       console.log('Loan creation result:', result);
     } catch (error) {
       console.error('Error creating loan:', error);
@@ -124,58 +170,81 @@ export default function BorrowPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 pt-24">  
-      <h1 className="text-3xl font-bold mb-8">Borrow</h1>    
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-300">
-      
-        <div className="mb-6">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Amount Near Tokens
-          </label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.0"
-            className="w-full p-2 border rounded-lg bg-white"
-          />
+    <div className="container mx-auto px-4 pt-24">
+      <h1 className="text-3xl font-bold mb-8">Borrow</h1>
+
+      {isWalletConnected ? (
+        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-300">
+          {/* Display Credit Score */}
+          <div className="mb-6 p-4 bg-gray-100 rounded-lg">
+            <h3 className="text-lg font-semibold mb-2">Credit Score</h3>
+            {creditScore !== null ? (
+              <p className="text-sm">Your Credit Score: <span className="font-bold">{creditScore}</span></p>
+            ) : (
+              <p className="text-sm">Fetching your credit score...</p>
+            )}
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Amount Near to Lend
+            </label>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.0"
+              className="w-full p-2 border rounded-lg bg-white"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Zcash Address
+            </label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Enter address to receive loan"
+              className="w-full p-2 border rounded-lg bg-white"
+            />
+          </div>
+
+          <button
+            onClick={handleBorrow}
+            disabled={isLoading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
+          >
+            {isLoading ? 'Borrowing...' : 'Borrow'}
+          </button>
+
+          <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+            <h3 className="text-lg font-semibold mb-2">Borrowing Stats</h3>
+            {loanInfo ? (
+              <div className="space-y-2">
+                <p className="text-sm">Start Date: {loanInfo?.start_timestamp ? new Date(loanInfo.start_timestamp).toLocaleDateString() : 'N/A'}</p>
+                <p className="text-sm">Due Date: {loanInfo?.due_timestamp ? new Date(loanInfo.due_timestamp).toLocaleDateString() : 'N/A'}</p>
+                <p className="text-sm">Loan Status: {loanInfo?.loan_status}</p>
+                <p className="text-sm">Your Borrowed: ≈ {((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE).toFixed(8)} ZCASH</p>
+              </div>
+            ) : (
+              <p className="text-sm">No loan found</p>
+            )}
+          </div>
+        </div>
+      ) :
+        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 border border-gray-300">
+
+          <div className="mb-6 text-center">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Please connect your wallet
+            </label>
+
+          </div>
         </div>
 
-        <div className="mb-6">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Zcash Address
-          </label>
-          <input
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Enter address to receive loan"
-            className="w-full p-2 border rounded-lg bg-white"
-          />
-        </div>
+      }
 
-        <button
-          onClick={handleBorrow}
-          disabled={isLoading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
-        >
-          {isLoading ? 'Borrowing...' : 'Borrow'}
-        </button>
-
-        <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-          <h3 className="text-lg font-semibold mb-2">Borrowing Stats</h3>
-          {loanInfo ? (
-            <div className="space-y-2">
-              <p className="text-sm">Start Date: {loanInfo?.start_timestamp ? new Date(loanInfo.start_timestamp).toLocaleDateString() : 'N/A'}</p>
-              <p className="text-sm">Due Date: {loanInfo?.due_timestamp ? new Date(loanInfo.due_timestamp).toLocaleDateString() : 'N/A'}</p>
-              <p className="text-sm">Loan Status: {loanInfo?.loan_status}</p>
-              <p className="text-sm">Your Borrowed: ≈ {((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE).toFixed(8)} ZCASH</p>
-            </div>
-          ):(
-            <p className="text-sm">No loan found</p>
-          )}
-        </div>
-      </div>
     </div>
   );
 } 
