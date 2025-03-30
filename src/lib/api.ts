@@ -375,7 +375,7 @@ const intentWithdraw = async (destinationAddress: string, token: string, amount:
 const setScore = async (account_id: string, score: number) => {
     const account = await getAccount();
     await account.functionCall({
-        contractId: "citadelonchain.near",
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || "",
         methodName: 'set_credit_score',
         args: { account_id, score }
     });
@@ -384,7 +384,7 @@ const setScore = async (account_id: string, score: number) => {
 const getLoanStatus = async (account_id: string) => {
     const account = await getAccount();
     return await account.functionCall({
-        contractId: "citadelonchain.near",
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || "",
         methodName: 'get_loan_status',
         args: { account_id }
     });
@@ -393,7 +393,7 @@ const getLoanStatus = async (account_id: string) => {
 const getPoolBalance = async () => {
     const account = await getAccount();
     return await account.functionCall({
-        contractId: "citadelonchain.near",
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || "",
         methodName: 'get_pool_balance',
         args: {}
     });
@@ -402,7 +402,7 @@ const getPoolBalance = async () => {
 const getLenderBalance = async (account_id: string) => {
     const account = await getAccount();
     return await account.functionCall({
-        contractId: "citadelonchain.near",
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || "",
         methodName: 'get_lender_balance',
         args: { account_id }
     });
@@ -411,7 +411,7 @@ const getLenderBalance = async (account_id: string) => {
 const viewLoan = async (account_id: string) => {
     const account = await getAccount();
     return await account.functionCall({
-        contractId: "citadelonchain.near",
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || "",
         methodName: 'view_loan',
         args: { account_id }
     });
@@ -420,7 +420,7 @@ const viewLoan = async (account_id: string) => {
 const getStakingRewards = async (account_id: string) => {
     const account = await getAccount();
     return await account.functionCall({
-        contractId: "citadelonchain.near",
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || "",
         methodName: 'get_staking_rewards',
         args: {account_id}
     });
@@ -429,7 +429,7 @@ const getStakingRewards = async (account_id: string) => {
 const setLoanStatus = async (account_id: string, status: string) => {
     const account = await getAccount();
     return await account.functionCall({
-        contractId: "citadelonchain.near",
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || "",
         methodName: 'set_loan_status',
         args: { account_id, status }
     });

@@ -5,6 +5,8 @@ import { useWalletSelector } from '@/components/Providers';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
+import dotenv from 'dotenv';
+dotenv.config();
 
 export default function StakePage() {
   const [amount, setAmount] = useState('');
@@ -44,7 +46,7 @@ export default function StakePage() {
       const result = await CallMethod({
         accountId,
         selector,
-        contractId: 'citadelonchain.near',
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || '',
         method: 'deposit',
         args: { },
         options: {

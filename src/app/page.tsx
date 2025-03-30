@@ -6,6 +6,9 @@ import { CallMethod } from '@/lib/near-method';
 import toast from 'react-hot-toast';
 import { toDecimals } from '@/utils';
 import { useSearchParams } from 'next/navigation';
+import dotenv from 'dotenv';
+import { registerIntentPublicKey } from '@/lib/api';
+dotenv.config();
 
 // Conversion rate: 1 NEAR = 0.0776045 ZCASH
 const NEAR_TO_ZCASH_RATE = 0.0776045 / 1; // Rate per 1 NEAR
@@ -201,7 +204,7 @@ export default function BorrowPage() {
       const result = await CallMethod({
         accountId,
         selector,
-        contractId: 'citadelonchain.near',
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || '',
         method: 'create_loan',
         args: {
           account_id: accountId,
@@ -246,7 +249,7 @@ export default function BorrowPage() {
       const result = await CallMethod({
         accountId,
         selector,
-        contractId: 'citadelonchain.near',
+        contractId: process.env.NEXT_PUBLIC_SMART_CONTRACT || '',
         method: 'repay',
         args: {
           account_id: accountId,
@@ -277,7 +280,6 @@ export default function BorrowPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24">
         <h1 className="text-3xl font-bold mb-8">Borrow</h1>
-
         {isWalletConnected ? (
           <div className="flex flex-col md:flex-row justify-center items-start">
             
