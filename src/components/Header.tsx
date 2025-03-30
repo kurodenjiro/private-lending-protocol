@@ -11,7 +11,7 @@ const Header = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-8">
             <Link href="/" className="text-xl font-bold text-gray-800">
-              Citadel On Chain
+              Vibe Lending
             </Link>
             <nav className="hidden md:flex space-x-4">
               <Link href="/" className="text-gray-600 hover:text-gray-900">
