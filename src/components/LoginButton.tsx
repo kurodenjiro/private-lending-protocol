@@ -44,44 +44,6 @@ const ButtonLogin: React.FC = () => {
         }
     };
 
-<<<<<<< HEAD
-    const setSorceForUser = async (accountId: string) => {
-        // If we've already fetched sorce or there's no accountId, don't proceed
-        if (hasFetchedSorce.current || !accountId) return;
-
-        try {
-            const hasSorce = localStorage.getItem('userSorce');
-            if (hasSorce) {
-                hasFetchedSorce.current = true;
-                return;
-            }
-
-            const response = await fetch('/api/sorce', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ account_id: accountId }),
-            });
-
-            const data = await response.json();
-            if (data.status === 'success') {
-                localStorage.setItem('userSorce', data.score.toString());
-                hasFetchedSorce.current = true;
-            }
-        } catch (error) {
-            console.error('Failed to set sorce:', error);
-        }
-    };
-
-    // Reset the fetch flag when accountId changes
-    useEffect(() => {
-        if (accountId) {
-            setSorceForUser(accountId);
-        }
-    }, [accountId]);
-=======
->>>>>>> d9b40ca (update)
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

@@ -26,8 +26,19 @@ export default function BorrowPage() {
   const [loanInfo, setLoanInfo] = useState<LoanInfo | null>(null);
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [creditScore, setCreditScore] = useState<number | null>(null);
+  const [loanableAmount, setLoanableAmount] = useState<number | null>(null);
   const searchParams = useSearchParams();
 
+  const calculateLoanableAmount = (creditScore: number): number => {
+    if (creditScore >= 0 && creditScore <= 300) {
+      return 10; // Max 10 NEAR for low credit score
+    } else if (creditScore >= 301 && creditScore <= 600) {
+      return 50; // Max 50 NEAR for medium credit score
+    } else if (creditScore >= 601 && creditScore <= 850) {
+      return 100; // Max 100 NEAR for high credit score
+    }
+    return 0; // Invalid credit score
+  };
 
   const fetchCreditScore = async () => {
     try {
@@ -40,8 +51,13 @@ export default function BorrowPage() {
       const data = await res.json();
       if (data.status === 'success') {
         setCreditScore(data.data.CreditScore);
+
+        // Calculate loanable amount based on credit score
+        const maxLoanable = calculateLoanableAmount(data.data.CreditScore);
+        setLoanableAmount(maxLoanable);
       } else {
         setCreditScore(null);
+        setLoanableAmount(null);
         toast.error('Failed to fetch credit score');
       }
     } catch (error) {
@@ -49,7 +65,6 @@ export default function BorrowPage() {
       toast.error('An error occurred while fetching the credit score');
     }
   };
-
 
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -118,7 +133,6 @@ export default function BorrowPage() {
     }
   }, [accountId, isWalletConnected]);
 
-
   const createLoan = async () => {
     const loadingToast = toast.loading('Transferring loan...');
     const res = await fetch('/api/swap', {
@@ -165,8 +179,8 @@ export default function BorrowPage() {
         return;
       }
 
-      if (amountNum > 100) {
-        toast.error('Maximum amount allowed is 100 NEAR');
+      if (loanableAmount !== null && amountNum > loanableAmount) {
+        toast.error(`Maximum amount allowed is ${loanableAmount} NEAR`);
         return;
       }
 
@@ -259,8 +273,6 @@ export default function BorrowPage() {
     }
   };
 
-  // console.log(toDecimals('0.1', 24));
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24">
@@ -268,6 +280,7 @@ export default function BorrowPage() {
 
         {isWalletConnected ? (
           <div className="flex flex-col md:flex-row justify-center items-start">
+            
             {/* Borrow Form Card */}
             <div className="w-full md:w-[450px] bg-white rounded-lg shadow-md p-6 border border-gray-300">
               <h2 className="text-xl font-semibold mb-6">Create New Loan</h2>
@@ -282,6 +295,16 @@ export default function BorrowPage() {
                 )}
               </div>
 
+              {/* Loanable Amount Section */}
+              <div className="mb-6 p-4 bg-gray-100 rounded-lg">
+                <h3 className="text-lg font-semibold mb-2">Loanable Amount</h3>
+                {loanableAmount !== null ? (
+                  <p className="text-sm">You can borrow up to: <span className="font-bold">{loanableAmount} NEAR</span></p>
+                ) : (
+                  <p className="text-sm">Calculating your loanable amount...</p>
+                )}
+              </div>
+
               {/* Amount Input */}
               <div className="mb-6">
                 <label className="block text-gray-700 text-sm font-bold mb-2">
@@ -292,14 +315,14 @@ export default function BorrowPage() {
                   value={amount}
                   onChange={(e) => {
                     const value = e.target.value;
-                    if (value === '' || (parseFloat(value) >= 0 && parseFloat(value) <= 100)) {
+                    if (value === '' || (parseFloat(value) >= 0 && parseFloat(value) <= (loanableAmount || 100))) {
                       setAmount(value);
                     }
                   }}
                   min="0"
-                  max="100"
+                  max={loanableAmount || 100}
                   step="0.000001"
-                  placeholder="0.0 (max 100 NEAR)"
+                  placeholder={`0.0 (max ${loanableAmount || 100} NEAR)`}
                   className="w-full p-2 border rounded-lg bg-white"
                 />
               </div>
@@ -372,4 +395,4 @@ export default function BorrowPage() {
       </div>
     </div>
   );
-} 
+}
