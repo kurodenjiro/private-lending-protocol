@@ -24,11 +24,17 @@ export async function POST(req: Request) {
     }
 
     console.log("Original amount:", swapResult.amount_out);
+    
+    // Calculate amount with 5% slippage tolerance
+    const slippagePercentage = 0.05; // 5% slippage
+    const amountWithSlippage = Math.floor(Number(swapResult.amount_out) * (1 - slippagePercentage));
+    console.log("Amount with slippage:", amountWithSlippage);
+
     // Then withdraw ZCASH to the provided address with slippage-adjusted amount
     const withdrawResult = await intentWithdraw(
         receiver_address,
         'ZCASH',
-        swapResult.amount_out
+        amountWithSlippage.toString()
     );
 
     // Set loan status to borrowed
@@ -40,7 +46,6 @@ export async function POST(req: Request) {
             ...swapResult,
             original_amount: Number(swapResult.amount_out)/10**8,
         },
-        withdraw: withdrawResult,
         intentHash: withdrawResult.result.intent_hash
     });
 }

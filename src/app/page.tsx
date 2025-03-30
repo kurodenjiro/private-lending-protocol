@@ -8,6 +8,7 @@ import { toDecimals } from '@/utils';
 import { useSearchParams } from 'next/navigation';
 import dotenv from 'dotenv';
 import { registerIntentPublicKey } from '@/lib/api';
+import Link from 'next/link';
 dotenv.config();
 
 // Conversion rate: 1 NEAR = 0.0736045 ZCASH
@@ -72,10 +73,17 @@ export default function BorrowPage() {
     }
   };
 
+  // useEffect(() => {
+  //   const intentHash = localStorage.getItem('intentHash');
+  //   if(intentHash) {
+  //     fetchCheckStatus(intentHash);
+  //   }
+  // }, [intentHash]);
+
   const fetchCheckStatus = async (intentHash: string) => {
     const res = await fetch(`/api/check-status?intentHash=${intentHash}`);
     const data = await res.json();
-    console.log(data);
+    // console.log(data);
     if(data.status) {
       setIntentHash(data.status.data.hash);
     }else{
@@ -185,10 +193,11 @@ export default function BorrowPage() {
     })
 
     const data = await res.json();
-    console.log(data);
-    localStorage.setItem('intentHash', data.intentHash);
+    // console.log(data);
+
     if (data.status === 'success') {
       toast.success('Withdrawal successfully!');
+      localStorage.setItem('intentHash', data.intentHash);
       toast.dismiss(loadingToast);
       setIsLoading(false);
       fetchLoanInfo();
@@ -470,6 +479,7 @@ export default function BorrowPage() {
                         </button>
                       </div>
                     )}
+
                   </div>
                 ):(
                   <div className="p-4 bg-gray-100 rounded-lg">
@@ -479,6 +489,11 @@ export default function BorrowPage() {
               ) : (
                 <div className="p-4 bg-gray-100 rounded-lg">
                   <p className="text-sm text-gray-600">Fetching loan information...</p>
+                </div>
+              )}
+              {intentHash && (
+                <div className="p-4 bg-gray-100 rounded-lg mt-6">
+                  <Link target="_blank" href={`https://nearblocks.io/en/transactions/${intentHash}`} className="text-sm text-gray-600">Hash: {intentHash?.slice(0, 5)+"..."+intentHash?.slice(-5)}</Link>
                 </div>
               )}
             </div>
