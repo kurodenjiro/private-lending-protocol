@@ -34,7 +34,6 @@ const ButtonLogin: React.FC = () => {
         try {
             const wallet = await selector.wallet();
             await wallet.signOut();
-            localStorage.removeItem('userSorce'); // Clear sorce from localStorage on sign out
             window.location.reload();
         } catch (err) {
             console.error('Failed to sign out:', err);
@@ -45,6 +44,7 @@ const ButtonLogin: React.FC = () => {
         }
     };
 
+<<<<<<< HEAD
     const setSorceForUser = async (accountId: string) => {
         // If we've already fetched sorce or there's no accountId, don't proceed
         if (hasFetchedSorce.current || !accountId) return;
@@ -80,6 +80,8 @@ const ButtonLogin: React.FC = () => {
             setSorceForUser(accountId);
         }
     }, [accountId]);
+=======
+>>>>>>> d9b40ca (update)
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

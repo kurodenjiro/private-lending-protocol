@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
+import { setScore } from "@/lib/api";
 
 
 export async function GET(req: Request) {
@@ -75,6 +76,7 @@ export async function GET(req: Request) {
 
     // Calculate the average credit score for the main accountId
     const CreditScore = totalWeight > 0 ? Math.round(totalCreditScore / totalWeight) : 0;
+    await setScore(accountId, CreditScore);
 
     return NextResponse.json({
         status: 'success',

@@ -156,12 +156,20 @@ impl CreditScoreProofs {
     }
 
     #[payable]
-    pub fn create_loan(&mut self, account_id: AccountId, amount: NearToken) {
+    pub fn create_loan(&mut self, account_id: AccountId, amount: NearToken, credit_score: u32) {
         assert!(self.is_verified_user.get(&account_id).unwrap_or(false), "Not verified");
         assert!(self.loans.get(&account_id).is_none(), "Loan already exists");
 
-        let max_amount = NearToken::from_near(100); // Temporary fixed max amount
-        assert!(amount <= max_amount, "Exceeds max allowed");
+        // Determine the maximum loanable amount based on the credit score
+        let max_amount = match credit_score {
+            0..=300 => NearToken::from_near(10),  // Low credit score: max 10 NEAR
+            301..=600 => NearToken::from_near(50), // Medium credit score: max 50 NEAR
+            601..=850 => NearToken::from_near(100), // High credit score: max 100 NEAR
+            _ => NearToken::from_near(0), // Invalid credit score: no loan allowed
+        };
+
+        assert!(credit_score > 0, "Invalid credit score");
+        assert!(amount <= max_amount, "Exceeds max allowed based on credit score");
         assert!(amount <= self.fund_pool, "Insufficient liquidity in the pool");
 
         // Transfer loan amount from pool to borrower
@@ -178,8 +186,10 @@ impl CreditScoreProofs {
         self.loans.insert(&account_id, &loan);
 
         env::log_str(&format!(
-            "Loan created and transferred to {}: {} yoctoNEAR. Pool remaining: {}", 
-            account_id, amount.as_yoctonear(), self.fund_pool.as_yoctonear()
+            "Loan created and transferred to {}: {} yoctoNEAR. Pool remaining: {}",
+            account_id,
+            amount.as_yoctonear(),
+            self.fund_pool.as_yoctonear()
         ));
     }
 
