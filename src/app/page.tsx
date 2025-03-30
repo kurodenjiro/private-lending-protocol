@@ -10,8 +10,8 @@ import dotenv from 'dotenv';
 import { registerIntentPublicKey } from '@/lib/api';
 dotenv.config();
 
-// Conversion rate: 1 NEAR = 0.0776045 ZCASH
-const NEAR_TO_ZCASH_RATE = 0.0776045 / 1; // Rate per 1 NEAR
+// Conversion rate: 1 NEAR = 0.0736045 ZCASH
+const NEAR_TO_ZCASH_RATE = 0.0736045 / 1; // Rate per 1 NEAR
 
 interface LoanInfo {
   due_timestamp: number;
@@ -23,9 +23,11 @@ interface LoanInfo {
 
 export default function BorrowPage() {
   const [amount, setAmount] = useState('');
+  const [amountRepay, setAmountRepay] = useState('');
   const [address, setAddress] = useState('');
   const { selector, accountId } = useWalletSelector();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingFetch, setIsLoadingFetch] = useState(false);
   const [loanInfo, setLoanInfo] = useState<LoanInfo | null>(null);
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [creditScore, setCreditScore] = useState<number | null>(null);
@@ -91,19 +93,27 @@ export default function BorrowPage() {
     const transactionHashes = searchParams.get('transactionHashes');
     if (transactionHashes) {
       // Check if we've already shown toast for this transaction
-      const shownTransactions = localStorage.getItem('shown_loan_transactions');
+      const shownTransactions = localStorage.getItem('shown_transactions');
+      const transactionType = localStorage.getItem('transaction_type');
       const shownArray = shownTransactions ? JSON.parse(shownTransactions) : [];
       
       if (!shownArray.includes(transactionHashes)) {
-        toast.success('Repayment successfully!');
+        if(transactionType == "borrow") {
+          toast.success('Loan created successfully!');
+        } else if(transactionType == "repay") {
+          toast.success('Repayment successfully!');
+        }else{
+          toast.success('Transaction successfully!');
+        }
         // Add this transaction to shown list
         shownArray.push(transactionHashes);
-        localStorage.setItem('shown_loan_transactions', JSON.stringify(shownArray));
+        localStorage.setItem('shown_transactions', JSON.stringify(shownArray));
       }
     }
   }, [searchParams]);
 
   const fetchLoanInfo = async () => {
+    setIsLoadingFetch(true);
     const res = await fetch('/api/view-loan', {
       method: 'POST',
       body: JSON.stringify({
@@ -112,13 +122,23 @@ export default function BorrowPage() {
     })
 
     const data = await res.json();
-    console.log(data);
+    // console.log(data);
     if (data.status === 'success') {
       if(data.loan === null) {
+        setIsLoadingFetch(false);
+        setLoanInfo({
+          due_timestamp: 0,
+          amount: '0',
+          interest_rate: 0,
+          start_timestamp: 0,
+          loan_status: 'No loan found'
+        });
         return;
       }
       setLoanInfo(data.loan[0]);
+      setIsLoadingFetch(false);
     } else {
+      setIsLoadingFetch(false);
       setLoanInfo({
         due_timestamp: 0,
         amount: '0',
@@ -126,9 +146,11 @@ export default function BorrowPage() {
         start_timestamp: 0,
         loan_status: 'No loan found'
       });
+      
     }
   }
 
+  
   useEffect(() => {
     if (accountId && isWalletConnected) {
       fetchLoanInfo();
@@ -137,12 +159,13 @@ export default function BorrowPage() {
   }, [accountId, isWalletConnected]);
 
   const createLoan = async () => {
+    setIsLoading(true);
     const loadingToast = toast.loading('Transferring loan...');
     const res = await fetch('/api/swap', {
       method: 'POST',
       body: JSON.stringify({
-        receiver_address: address,
-        amount: amount,
+        receiver_address: localStorage.getItem('loan_address'),
+        amount: localStorage.getItem('loan_amount'),
         account_id: accountId
       })
     })
@@ -150,14 +173,12 @@ export default function BorrowPage() {
     const data = await res.json();
     console.log(data);
     if (data.status === 'success') {
-      toast.success('Loan created successfully!');
+      toast.success('Withdrawal successfully!');
       toast.dismiss(loadingToast);
-      setAmount('');
-      setAddress('');
       setIsLoading(false);
       fetchLoanInfo();
     } else {
-      toast.error('Failed to create loan. Please try again.');
+      toast.error('Failed to withdraw loan. Please try again.');
       toast.dismiss(loadingToast);
       setIsLoading(false);
     }
@@ -200,7 +221,9 @@ export default function BorrowPage() {
 
       setIsLoading(true);
       const loadingToast = toast.loading('Creating loan...');
+      localStorage.setItem('transaction_type', 'borrow');
       localStorage.setItem('loan_amount', amount);
+      localStorage.setItem('loan_address', address);
       const result = await CallMethod({
         accountId,
         selector,
@@ -216,10 +239,10 @@ export default function BorrowPage() {
         }
       });
       toast.dismiss(loadingToast);
-      if (result) {
-        createLoan();
-      }
-
+      setIsLoading(false);
+      setAmount('');
+      setAddress('');
+      fetchLoanInfo();
       console.log('Loan creation result:', result);
     } catch (error) {
       console.error('Error creating loan:', error);
@@ -246,6 +269,9 @@ export default function BorrowPage() {
         return;
       }
 
+      const amountRepayNum = Number((Number(loanInfo?.amount)/10**24).toFixed(3)) == Number(amountRepay) ? loanInfo?.amount : toDecimals(amountRepay, 24);
+      console.log(amountRepayNum);
+      localStorage.setItem('transaction_type', 'repay');
       const result = await CallMethod({
         accountId,
         selector,
@@ -256,7 +282,7 @@ export default function BorrowPage() {
         },
         options: {
           gas: '100000000000000',  // 100 TGas
-          attached_deposit: loanInfo?.amount
+          attached_deposit: amountRepayNum
         }
       });
 
@@ -301,7 +327,7 @@ export default function BorrowPage() {
               <div className="mb-6 p-4 bg-gray-100 rounded-lg">
                 <h3 className="text-lg font-semibold mb-2">Loanable Amount</h3>
                 {loanableAmount !== null ? (
-                  <p className="text-sm">You can borrow up to: <span className="font-bold">{loanableAmount} NEAR</span></p>
+                  <p className="text-sm">You can borrow up to: <span className="font-bold">{loanableAmount} NEAR ≈ {(Number(loanableAmount)*NEAR_TO_ZCASH_RATE).toFixed(8)} ZCASH</span></p>
                 ) : (
                   <p className="text-sm">Calculating your loanable amount...</p>
                 )}
@@ -312,21 +338,28 @@ export default function BorrowPage() {
                 <label className="block text-gray-700 text-sm font-bold mb-2">
                   Amount Near to Lend
                 </label>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === '' || (parseFloat(value) >= 0 && parseFloat(value) <= (loanableAmount || 100))) {
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">0.001 NEAR</span>
+                    <span className="text-sm font-medium">{amount || '0.001'} NEAR</span>
+                    <span className="text-sm text-gray-600">{loanableAmount || 100} NEAR</span>
+                  </div>
+                  <input
+                    type="range"
+                    value={amount}
+                    onChange={(e) => {
+                      const value = e.target.value;
                       setAmount(value);
-                    }
-                  }}
-                  min="0"
-                  max={loanableAmount || 100}
-                  step="0.000001"
-                  placeholder={`0.0 (max ${loanableAmount || 100} NEAR)`}
-                  className="w-full p-2 border rounded-lg bg-white"
-                />
+                    }}
+                    min="0.001"
+                    max={loanableAmount || 100}
+                    step="0.001"
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
+                  <div className="text-xs text-gray-500 text-right">
+                    ≈ {((Number(amount || 0.001) * NEAR_TO_ZCASH_RATE)).toFixed(8)} ZCASH
+                  </div>
+                </div>
               </div>
 
               {/* Zcash Address Input */}
@@ -338,8 +371,7 @@ export default function BorrowPage() {
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Enter Zcash address (t1... or t3...)"
-                  pattern="^[t][1|3][a-zA-Z0-9]{33}$"
+                  placeholder="Enter Zcash address"
                   className="w-full p-2 border rounded-lg bg-white"
                 />
               </div>
@@ -358,29 +390,73 @@ export default function BorrowPage() {
             <div className="w-full md:w-[450px] bg-white rounded-lg shadow-md p-6 border border-gray-300 mt-6 md:mt-0 md:ml-6">
               <h2 className="text-xl font-semibold mb-6">Loan Information</h2>
               
-              {loanInfo ? (
-                <div className="space-y-4">
-                  <div className="p-4 bg-gray-100 rounded-lg space-y-2">
-                    <p className="text-sm">Start Date: {loanInfo?.start_timestamp ? new Date(loanInfo.start_timestamp).toLocaleDateString() : 'N/A'}</p>
-                    <p className="text-sm">Due Date: {loanInfo?.due_timestamp ? new Date(loanInfo.due_timestamp).toLocaleDateString() : 'N/A'}</p>
-                    <p className="text-sm">Loan Status: <span className="font-medium">{loanInfo?.loan_status}</span></p>
-                    <p className="text-sm">Amount Borrowed: <span className="font-medium">≈ {((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE).toFixed(8)} ZCASH</span></p>
-                  </div>
+              {!isLoadingFetch ? (
+                loanInfo?.loan_status != "No loan found" ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gray-100 rounded-lg space-y-2">
+                      <p className="text-sm">Start Date: {loanInfo?.start_timestamp ? new Date(loanInfo.start_timestamp).toLocaleDateString() : 'N/A'}</p>
+                      <p className="text-sm">Due Date: {loanInfo?.due_timestamp ? new Date(loanInfo.due_timestamp).toLocaleDateString() : 'N/A'}</p>
+                      <p className="text-sm">Loan Status: <span className="font-medium">{loanInfo?.loan_status == "Pending" ? "Ready to Withdraw" : "Borrowed"}</span></p>
+                      <p className="text-sm">Amount Borrowed: <span className="font-medium">≈ {((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE).toFixed(8)} ZCASH</span></p>
+                    </div>
 
-                  {/* Repay Button - Only show if there's an active loan */}
-                  {loanInfo?.loan_status === 'Borrowed' && (
-                    <button
-                      onClick={handleRepay}
-                      disabled={isLoading}
-                      className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
-                    >
-                      {isLoading ? 'Processing...' : 'Repay Loan'}
-                    </button>
-                  )}
-                </div>
+                    {/* Repay Button - Only show if there's an active loan */}
+                    {loanInfo?.loan_status === 'Pending' && (
+                      <button
+                        onClick={()=>createLoan()}
+                        disabled={isLoading}
+                        className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
+                      >
+                        {isLoading ? 'Processing...' : 'Withdraw Loan'}
+                      </button>
+                    )}
+                    {loanInfo?.loan_status === 'Borrowed' && (
+                      <div>
+                        <div className="mb-6">
+                          <label className="block text-gray-700 text-sm font-bold mb-2">
+                            Amount Near to Repay
+                          </label>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">0.001 NEAR</span>
+                              <span className="text-sm font-medium">{amountRepay || '0.001'} NEAR</span>
+                              <span className="text-sm text-gray-600">{(Number(loanInfo?.amount) / 10 ** 24).toFixed(3) || 100} NEAR</span>
+                            </div>
+                            <input
+                              type="range"
+                              value={amountRepay}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setAmountRepay(value);
+                              }}
+                              min="0.001"
+                              max={(Number(loanInfo?.amount) / 10 ** 24).toFixed(3) || 100}
+                              step="0.001"
+                              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            />
+                            <div className="text-xs text-gray-500 text-right">
+                              ≈ {((Number(amountRepay || 0.001) * NEAR_TO_ZCASH_RATE)).toFixed(8)} ZCASH
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleRepay}
+                          disabled={isLoading}
+                          className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
+                        >
+                          {isLoading ? 'Processing...' : 'Repay Loan'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ):(
+                  <div className="p-4 bg-gray-100 rounded-lg">
+                    <p className="text-sm text-gray-600">No active loans found</p>
+                  </div>
+                )
               ) : (
                 <div className="p-4 bg-gray-100 rounded-lg">
-                  <p className="text-sm text-gray-600">No active loans found</p>
+                  <p className="text-sm text-gray-600">Fetching loan information...</p>
                 </div>
               )}
             </div>
