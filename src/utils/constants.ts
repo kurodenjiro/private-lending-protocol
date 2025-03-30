@@ -3,6 +3,11 @@ const MAX_GAS = '300000000000000';
 const SOLVER_BUS_URL = "https://solver-relay-v2.chaindefuser.com/rpc";
 
 const ASSET_MAP = {
+    'BTC': {
+        token_id: 'btc.omft.near',
+        omft: 'btc.omft.near',
+        decimals: 8,
+    },
     'USDT': {
         token_id: 'eth-0xdac17f958d2ee523a2206206994597c13d831ec7.omft.near',
         omft: 'eth-0xdac17f958d2ee523a2206206994597c13d831ec7.omft.near',

@@ -105,15 +105,11 @@ interface SerializedMessage {
 }
 
 class IntentRequest {
-    private request: any | null;
-    private thread: any | null;
     private min_deadline_ms: number;
     private asset_in: Asset | null;
     private asset_out: Asset | null;
 
-    constructor(request: any | null = null, thread: any | null = null, minDeadlineMs: number = 60000) {
-        this.request = request;
-        this.thread = thread;
+    constructor(minDeadlineMs: number = 60000) {
         this.min_deadline_ms = minDeadlineMs;
         this.asset_in = null;
         this.asset_out = null;
@@ -165,10 +161,10 @@ const fetchOptions = async (request: IntentRequest) => {
         ]
     };
 
-    console.log(rpcRequest)
+    // console.log(rpcRequest)
     const response = await axios.post(SOLVER_BUS_URL, rpcRequest);
     // The API returns quotes array in the result
-    // console.log(response.data)
+    console.log(response.data)
     return response.data.result || [];
 }
 
@@ -338,12 +334,15 @@ interface WithdrawQuote {
 }
 
 const intentWithdraw = async (destinationAddress: string, token: string, amount: string) => {
+    console.log('Withdrawing:', {destinationAddress, token, amount});
     const nonce = crypto.randomBytes(32).toString('base64');
 
     const deadline = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
     const deadlineStr = deadline.toISOString();
 
     const account = await getAccount();
+
+    console.log(TYPED_ASSET_MAP[token].token_id);
 
     const quote: WithdrawQuote = {
         signer_id: account.accountId,
@@ -352,18 +351,21 @@ const intentWithdraw = async (destinationAddress: string, token: string, amount:
         deadline: deadlineStr,
         intents: [
             {
-                intent: "ft_withdraw",
-                token: TYPED_ASSET_MAP[token].token_id,
-                receiver_id: destinationAddress,
-                amount: amount
+                intent: token == 'NEAR' ? "native_withdraw" : "ft_withdraw",
+                token: token == 'NEAR' ? '' : TYPED_ASSET_MAP[token].token_id,
+                receiver_id: token == 'NEAR' ? destinationAddress : TYPED_ASSET_MAP[token].token_id,
+                amount: amount,
+                memo: token != 'NEAR' ? `WITHDRAW_TO:${destinationAddress}` : ''
             }
         ]
     };
 
-    quote.intents[0].token = TYPED_ASSET_MAP[token].omft || '';
-    quote.intents[0].receiver_id = TYPED_ASSET_MAP[token].omft || '';
-    quote.intents[0].memo = `WITHDRAW_TO:${destinationAddress}`;
-
+    if(token == 'NEAR') {
+        quote.intents[0].token = '';
+        quote.intents[0].receiver_id = destinationAddress;
+        // quote.intents[0].memo = `WITHDRAW_TO:${destinationAddress}`;
+    }
+    console.log(quote);
     const signedQuote = await signQuote(JSON.stringify(quote));
     const signedIntent = {
         signed_data: signedQuote,
@@ -463,5 +465,7 @@ export {
     getStakingRewards,
     setLoanStatus,
     registerIntentPublicKey,
-    checkStatus
+    checkStatus,
+    fetchOptions,
+    IntentRequest
 }

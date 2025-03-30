@@ -14,6 +14,8 @@ dotenv.config();
 // Conversion rate: 1 NEAR = 0.0736045 ZCASH
 const NEAR_TO_ZCASH_RATE = 0.0736045 / 1; // Rate per 1 NEAR
 
+const ZCASH_TO_NEAR_RATE = 1 / 0.0736045; // Rate per 1 ZCASH
+
 interface LoanInfo {
   due_timestamp: number;
   amount: string;
@@ -21,6 +23,34 @@ interface LoanInfo {
   start_timestamp: number;
   loan_status: string;
 }
+
+type TokenType = 'BTC' | 'ZCASH' | 'NEAR';
+
+interface TokenInfo {
+  address?: string;
+  warning: string;
+  minDeposit: string;
+  shortAddress?: string;
+}
+
+const TOKEN_INFO: Record<TokenType, TokenInfo> = {
+  BTC: {
+    address: '1DH1XC1RsNuqtaXbMz1QTLTyuibNJSKnoh',
+    shortAddress: '1DH1X...Knoh',
+    warning: 'Only deposit BTC from the Bitcoin network. Depositing other assets or using a different network will result in loss of funds.',
+    minDeposit: '0.0001 BTC'
+  },
+  ZCASH: {
+    address: 't1f4xLrcfFdHRDtetGdsy171QvwW1kmM53F',
+    shortAddress: 't1f4x...M53F',
+    warning: 'Only deposit ZEC from the Zcash network. Depositing other assets or using a different network will result in loss of funds.',
+    minDeposit: '0.0001 ZCASH'
+  },
+  NEAR: {
+    warning: 'Deposit NEAR using your connected wallet.',
+    minDeposit: '0.1 NEAR'
+  }
+};
 
 export default function BorrowPage() {
   const [amount, setAmount] = useState('');
@@ -34,6 +64,10 @@ export default function BorrowPage() {
   const [creditScore, setCreditScore] = useState<number | null>(null);
   const [loanableAmount, setLoanableAmount] = useState<number | null>(null);
   const [intentHash, setIntentHash] = useState<string | null>(null);
+  const [selectedToken, setSelectedToken] = useState<TokenType>('NEAR');
+  const [expectedAmount, setExpectedAmount] = useState<string>('');
+  const [amountBorrow, setAmountBorrow] = useState<string>('');
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const searchParams = useSearchParams();
 
   const calculateLoanableAmount = (creditScore: number): number => {
@@ -72,24 +106,6 @@ export default function BorrowPage() {
       toast.error('An error occurred while fetching the credit score');
     }
   };
-
-  // useEffect(() => {
-  //   const intentHash = localStorage.getItem('intentHash');
-  //   if(intentHash) {
-  //     fetchCheckStatus(intentHash);
-  //   }
-  // }, [intentHash]);
-
-  const fetchCheckStatus = async (intentHash: string) => {
-    const res = await fetch(`/api/check-status?intentHash=${intentHash}`);
-    const data = await res.json();
-    // console.log(data);
-    if(data.status) {
-      setIntentHash(data.status.data.hash);
-    }else{
-      toast.error('Failed to check status');
-    }
-  }
 
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -131,6 +147,24 @@ export default function BorrowPage() {
       }
     }
   }, [searchParams]);
+
+  const expectedAmountToken = async (token_in: string, token_out: string, amount: string) => {
+    setIsLoadingQuote(true);
+    const res = await fetch('/api/quote', {
+      method: 'POST',
+      body: JSON.stringify({ token_in, token_out, amount })
+    })
+    const data = await res.json();
+    if(data.status === 'success') {
+      setIsLoadingQuote(false);
+      const amount_out = data?.quote?.amount_out || 0;
+      return (Number(amount_out)/10**24).toFixed(3);
+    }else{
+      setIsLoadingQuote(false);
+      return 0;
+    }
+  }
+
 
   const fetchLoanInfo = async () => {
     setIsLoadingFetch(true);
@@ -186,9 +220,12 @@ export default function BorrowPage() {
     const res = await fetch('/api/swap', {
       method: 'POST',
       body: JSON.stringify({
-        receiver_address: address,
+        address: address,
         amount: (Number(loanInfo?.amount)/10**24).toFixed(3),
-        account_id: accountId
+        account_id: accountId,
+        token_in: 'NEAR',
+        token_out: 'ZCASH',
+        swap_type: 'borrow'
       })
     })
 
@@ -201,11 +238,32 @@ export default function BorrowPage() {
       toast.dismiss(loadingToast);
       setIsLoading(false);
       fetchLoanInfo();
-      fetchCheckStatus(data.intentHash);
     } else {
       toast.error('Failed to withdraw loan. Please try again.');
       toast.dismiss(loadingToast);
       setIsLoading(false);
+    }
+  }
+
+  const swapToken = async (token_in: string, token_out: string, amount: string) => {
+    const res = await fetch('/api/swap', {
+      method: 'POST',
+      body: JSON.stringify(
+        { 
+          token_in, 
+          token_out,
+          amount,
+          account_id: accountId,
+          swap_type: 'swap',
+          address: accountId
+        })
+    })
+    const data = await res.json();
+    console.log(data);
+    if(data.status === 'success') {
+      return data?.swap?.original_amount;
+    }else{
+      return 0;
     }
   }
 
@@ -298,8 +356,26 @@ export default function BorrowPage() {
         return;
       }
 
-      const amountRepayNum = Number((Number(loanInfo?.amount)/10**24).toFixed(3)) == Number(amountRepay) ? loanInfo?.amount : toDecimals(amountRepay, 24);
-      // console.log(amountRepayNum);
+      let amountRepaySwap = 0;
+
+      if(selectedToken !== 'NEAR') {
+        amountRepaySwap = await swapToken(selectedToken, 'NEAR', amountRepay);
+        console.log(amountRepaySwap);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const amountRepayNum = 
+      selectedToken == 'NEAR' ?
+      Number((Number(loanInfo?.amount)/10**24).toFixed(3)) == Number(amountRepay) 
+      ? loanInfo?.amount 
+      : toDecimals(amountRepay, 24)
+      : amountRepaySwap >= Number(loanInfo?.amount)
+      ? loanInfo?.amount
+      : amountRepaySwap;
+
+      console.log(amountRepayNum);
+
       localStorage.setItem('transaction_type', 'repay');
       const result = await CallMethod({
         accountId,
@@ -311,7 +387,7 @@ export default function BorrowPage() {
         },
         options: {
           gas: '100000000000000',  // 100 TGas
-          attached_deposit: amountRepayNum
+          attached_deposit: amountRepayNum.toString()
         }
       });
 
@@ -329,6 +405,31 @@ export default function BorrowPage() {
       setIsLoading(false);
     }
   };
+
+  // console.log(amountRepay);
+
+  const handleChangeAmount = async (amount: string) => {
+    setAmountRepay(amount);
+    if(selectedToken == 'NEAR') {
+      setExpectedAmount(amount);
+    }else{
+      const expectedAmount = await expectedAmountToken(selectedToken, 'NEAR', amount);
+      console.log(expectedAmount);
+      setExpectedAmount(expectedAmount.toString());
+    }
+  }
+  
+  const handleChangeToken = (token: TokenType) => {
+    setSelectedToken(token);
+    setExpectedAmount('');
+    setAmountRepay('');
+  }
+
+  const handleCopyAddress = (address: string) => {
+    navigator.clipboard.writeText(address);
+    toast.success('Address copied to clipboard!');
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -375,10 +476,7 @@ export default function BorrowPage() {
                   <input
                     type="range"
                     value={amount}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setAmount(value);
-                    }}
+                    onChange={(e) => setAmount(e.target.value)}
                     min="0.5"
                     max={loanableAmount || 100}
                     step="0.5"
@@ -389,8 +487,6 @@ export default function BorrowPage() {
                   </div>
                 </div>
               </div>
-
-              
 
               {/* Borrow Button */}
               <button
@@ -445,28 +541,67 @@ export default function BorrowPage() {
                       <div>
                         <div className="mb-6">
                           <label className="block text-gray-700 text-sm font-bold mb-2">
-                            Amount Near to Repay
+                            Select Token
+                          </label>
+                          <select
+                            value={selectedToken}
+                            onChange={(e) => handleChangeToken(e.target.value as TokenType)}
+                            className="w-full p-2 border rounded-lg bg-white border-gray-300 mb-4"
+                          >
+                            <option value="BTC">BTC</option>
+                            <option value="ZCASH">ZCASH</option>
+                            <option value="NEAR">NEAR</option>
+                          </select>
+
+                          {selectedToken !== 'NEAR' && TOKEN_INFO[selectedToken].address && (
+                            <div className="mb-4">
+                              <h3 className="text-lg font-semibold mb-2">Use this deposit address</h3>
+                              <p className="text-sm text-gray-600 mb-2">
+                                Always double-check your deposit address — it may change without notice.
+                              </p>
+                              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <span className="font-mono">{TOKEN_INFO[selectedToken].shortAddress}</span>
+                                <button
+                                  onClick={() => handleCopyAddress(TOKEN_INFO[selectedToken].address!)}
+                                  className="p-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors cursor-pointer"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                                    <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                                  </svg>
+                                </button>
+                              </div>
+                              <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                <p className="text-orange-700 text-sm">{TOKEN_INFO[selectedToken].warning}</p>
+                              </div>
+                            </div>
+                          )}
+                          <label className="block text-gray-700 text-sm font-bold mb-2">
+                            Amount {selectedToken} to Repay
                           </label>
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">0.001 NEAR</span>
-                              <span className="text-sm font-medium">{amountRepay || '0.001'} NEAR</span>
-                              <span className="text-sm text-gray-600">{(Number(loanInfo?.amount) / 10 ** 24).toFixed(3) || 100} NEAR</span>
+                              <span className="text-sm text-gray-600">0.001 {selectedToken}</span>
+                              <span className="text-sm font-medium">{amountRepay || '0.001'} {selectedToken}</span>
+                              <span className="text-sm text-gray-600">{selectedToken === 'NEAR' ? (Number(loanInfo?.amount) / 10 ** 24).toFixed(3) : ((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE).toFixed(8)} {selectedToken}</span>
                             </div>
                             <input
                               type="range"
                               value={amountRepay}
                               onChange={(e) => {
-                                const value = e.target.value;
-                                setAmountRepay(value);
+                                handleChangeAmount(e.target.value);
                               }}
                               min="0.001"
-                              max={(Number(loanInfo?.amount) / 10 ** 24).toFixed(3) || 100}
+                              max={selectedToken === 'NEAR' ? (Number(loanInfo?.amount) / 10 ** 24) : ((Number(loanInfo?.amount) / 10 ** 24) * NEAR_TO_ZCASH_RATE)}
                               step="0.001"
                               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                             />
                             <div className="text-xs text-gray-500 text-right">
-                              ≈ {((Number(amountRepay || 0.001) * NEAR_TO_ZCASH_RATE)).toFixed(8)} ZCASH
+                              {isLoadingQuote ? (
+                                <span>Loading...</span>
+                              ) : (
+                                <span>≈ {selectedToken === 'NEAR' ? (Number(amountRepay)*NEAR_TO_ZCASH_RATE).toFixed(8) : expectedAmount} {selectedToken === 'NEAR' ? 'ZCASH' : 'NEAR'}</span>
+                              )}
                             </div>
                           </div>
                         </div>
