@@ -158,14 +158,16 @@ export default function BorrowPage() {
     }
   }, [accountId, isWalletConnected]);
 
+  // console.log(loanInfo);
+
   const createLoan = async () => {
     setIsLoading(true);
     const loadingToast = toast.loading('Transferring loan...');
     const res = await fetch('/api/swap', {
       method: 'POST',
       body: JSON.stringify({
-        receiver_address: localStorage.getItem('loan_address'),
-        amount: localStorage.getItem('loan_amount'),
+        receiver_address: address,
+        amount: (Number(loanInfo?.amount)/10**24).toFixed(3),
         account_id: accountId
       })
     })
@@ -208,12 +210,6 @@ export default function BorrowPage() {
         return;
       }
 
-      // Validate address
-      if (!address) {
-        toast.error('Please enter a Zcash address');
-        return;
-      }
-
       if (!accountId) {
         toast.error('Please connect your wallet first');
         return;
@@ -222,8 +218,6 @@ export default function BorrowPage() {
       setIsLoading(true);
       const loadingToast = toast.loading('Creating loan...');
       localStorage.setItem('transaction_type', 'borrow');
-      localStorage.setItem('loan_amount', amount);
-      localStorage.setItem('loan_address', address);
       const result = await CallMethod({
         accountId,
         selector,
@@ -270,7 +264,7 @@ export default function BorrowPage() {
       }
 
       const amountRepayNum = Number((Number(loanInfo?.amount)/10**24).toFixed(3)) == Number(amountRepay) ? loanInfo?.amount : toDecimals(amountRepay, 24);
-      console.log(amountRepayNum);
+      // console.log(amountRepayNum);
       localStorage.setItem('transaction_type', 'repay');
       const result = await CallMethod({
         accountId,
@@ -288,7 +282,6 @@ export default function BorrowPage() {
 
       if (result) {
         toast.success('Loan repaid successfully!');
-        localStorage.removeItem('loan_amount');
         toast.dismiss(loadingToast);
         fetchLoanInfo(); // Refresh loan info
       }
@@ -362,19 +355,7 @@ export default function BorrowPage() {
                 </div>
               </div>
 
-              {/* Zcash Address Input */}
-              <div className="mb-6">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Zcash Address
-                </label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Enter Zcash address"
-                  className="w-full p-2 border rounded-lg bg-white"
-                />
-              </div>
+              
 
               {/* Borrow Button */}
               <button
@@ -382,7 +363,7 @@ export default function BorrowPage() {
                 disabled={isLoading}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
               >
-                {isLoading ? 'Processing...' : 'Borrow'}
+                {isLoading ? 'Processing...' : 'Create Loan'}
               </button>
             </div>
 
@@ -402,13 +383,28 @@ export default function BorrowPage() {
 
                     {/* Repay Button - Only show if there's an active loan */}
                     {loanInfo?.loan_status === 'Pending' && (
-                      <button
-                        onClick={()=>createLoan()}
-                        disabled={isLoading}
-                        className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
-                      >
-                        {isLoading ? 'Processing...' : 'Withdraw Loan'}
-                      </button>
+                      <div>
+                        {/* Zcash Address Input */}
+                        <div className="mb-6">
+                          <label className="block text-gray-700 text-sm font-bold mb-2">
+                            Zcash Address
+                          </label>
+                          <input
+                            type="text"
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            placeholder="Enter Zcash address"
+                            className="w-full p-2 border rounded-lg bg-white"
+                          />
+                        </div>
+                        <button
+                          onClick={()=>createLoan()}
+                          disabled={isLoading}
+                          className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg cursor-pointer disabled:bg-gray-400"
+                        >
+                          {isLoading ? 'Processing...' : 'Withdraw Loan'}
+                        </button>
+                      </div>
                     )}
                     {loanInfo?.loan_status === 'Borrowed' && (
                       <div>
