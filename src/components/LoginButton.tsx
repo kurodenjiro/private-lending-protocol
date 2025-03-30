@@ -33,7 +33,6 @@ const ButtonLogin: React.FC = () => {
         try {
             const wallet = await selector.wallet();
             await wallet.signOut();
-            localStorage.removeItem('userSorce'); // Clear sorce from localStorage on sign out
             window.location.reload();
         } catch (err) {
             console.error('Failed to sign out:', err);
@@ -44,35 +43,6 @@ const ButtonLogin: React.FC = () => {
         }
     };
 
-    const setSorceForUser = async (accountId: string) => {
-        try {
-            const hasSorce = localStorage.getItem('userSorce');
-            if (hasSorce) return; // Skip if sorce is already set
-
-            const response = await fetch('/api/sorce', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ account_id: accountId }),
-            });
-
-            const data = await response.json();
-            if (data.status === 'success') {
-                localStorage.setItem('userSorce', data.score.toString());
-            }
-        } catch (error) {
-            console.error('Failed to set sorce:', error);
-        }
-    };
-
-    // Use useEffect to watch for signedAccountId changes
-    useEffect(() => {
-        if (accountId) {
-            // console.log('signedAccountId', accountId);
-            setSorceForUser(accountId);
-        }
-    }, [accountId]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
