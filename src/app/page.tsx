@@ -32,6 +32,7 @@ export default function BorrowPage() {
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [creditScore, setCreditScore] = useState<number | null>(null);
   const [loanableAmount, setLoanableAmount] = useState<number | null>(null);
+  const [intentHash, setIntentHash] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   const calculateLoanableAmount = (creditScore: number): number => {
@@ -70,6 +71,17 @@ export default function BorrowPage() {
       toast.error('An error occurred while fetching the credit score');
     }
   };
+
+  const fetchCheckStatus = async (intentHash: string) => {
+    const res = await fetch(`/api/check-status?intentHash=${intentHash}`);
+    const data = await res.json();
+    console.log(data);
+    if(data.status) {
+      setIntentHash(data.status.data.hash);
+    }else{
+      toast.error('Failed to check status');
+    }
+  }
 
   useEffect(() => {
     const checkWalletConnection = async () => {
@@ -174,11 +186,13 @@ export default function BorrowPage() {
 
     const data = await res.json();
     console.log(data);
+    localStorage.setItem('intentHash', data.intentHash);
     if (data.status === 'success') {
       toast.success('Withdrawal successfully!');
       toast.dismiss(loadingToast);
       setIsLoading(false);
       fetchLoanInfo();
+      fetchCheckStatus(data.intentHash);
     } else {
       toast.error('Failed to withdraw loan. Please try again.');
       toast.dismiss(loadingToast);
@@ -187,36 +201,47 @@ export default function BorrowPage() {
   }
 
   const handleBorrow = async () => {
+    const loadingToast = toast.loading('Creating loan...');
     try {
       // Validate amount
       if (!amount) {
         toast.error('Please enter an amount');
+        toast.dismiss(loadingToast);
+        setIsLoading(false);
         return;
       }
 
       const amountNum = parseFloat(amount);
       if (isNaN(amountNum)) {
         toast.error('Please enter a valid number');
+        toast.dismiss(loadingToast);
+        setIsLoading(false);
         return;
       }
 
       if (amountNum <= 0) {
         toast.error('Amount must be greater than 0');
+        toast.dismiss(loadingToast);
+        setIsLoading(false);
         return;
       }
 
       if (loanableAmount !== null && amountNum > loanableAmount) {
         toast.error(`Maximum amount allowed is ${loanableAmount} NEAR`);
+        toast.dismiss(loadingToast);
+        setIsLoading(false);
         return;
       }
 
       if (!accountId) {
         toast.error('Please connect your wallet first');
+        toast.dismiss(loadingToast);
+        setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
-      const loadingToast = toast.loading('Creating loan...');
+
       localStorage.setItem('transaction_type', 'borrow');
       const result = await CallMethod({
         accountId,
@@ -241,6 +266,7 @@ export default function BorrowPage() {
     } catch (error) {
       console.error('Error creating loan:', error);
       toast.error('Failed to create loan. Please try again.');
+      toast.dismiss(loadingToast);
       setIsLoading(false);
     }
   };
@@ -333,8 +359,8 @@ export default function BorrowPage() {
                 </label>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">0.001 NEAR</span>
-                    <span className="text-sm font-medium">{amount || '0.001'} NEAR</span>
+                    <span className="text-sm text-gray-600">0.5 NEAR</span>
+                    <span className="text-sm font-medium">{amount || '0.5'} NEAR</span>
                     <span className="text-sm text-gray-600">{loanableAmount || 100} NEAR</span>
                   </div>
                   <input
@@ -344,13 +370,13 @@ export default function BorrowPage() {
                       const value = e.target.value;
                       setAmount(value);
                     }}
-                    min="0.001"
+                    min="0.5"
                     max={loanableAmount || 100}
-                    step="0.001"
+                    step="0.5"
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                   />
                   <div className="text-xs text-gray-500 text-right">
-                    ≈ {((Number(amount || 0.001) * NEAR_TO_ZCASH_RATE)).toFixed(8)} ZCASH
+                    ≈ {((Number(amount || 0.5) * NEAR_TO_ZCASH_RATE)).toFixed(8)} ZCASH
                   </div>
                 </div>
               </div>

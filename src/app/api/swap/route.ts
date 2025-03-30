@@ -40,7 +40,8 @@ export async function POST(req: Request) {
             ...swapResult,
             original_amount: Number(swapResult.amount_out)/10**8,
         },
-        withdraw: withdrawResult
+        withdraw: withdrawResult,
+        intentHash: withdrawResult.result.intent_hash
     });
 }
 

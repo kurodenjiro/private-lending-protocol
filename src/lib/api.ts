@@ -435,6 +435,22 @@ const setLoanStatus = async (account_id: string, status: string) => {
     });
 }
 
+const checkStatus = async (intentHash: string) => {
+    const rpcRequest = {
+        "id": "dontcare",
+        "jsonrpc": "2.0",
+        "method": "get_status",
+        "params": [
+            {
+                "intent_hash": intentHash
+            }
+        ]
+    };
+
+    const response = await axios.post(SOLVER_BUS_URL, rpcRequest);
+    return response.data;
+}
+
 export {
     intentSwap,
     intentWithdraw,
@@ -447,4 +463,5 @@ export {
     getStakingRewards,
     setLoanStatus,
     registerIntentPublicKey,
+    checkStatus
 }
